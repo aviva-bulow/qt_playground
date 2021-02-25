@@ -1,5 +1,5 @@
 # from PyQt5.QtGui import QA
-from typing import Optional, Union
+from typing import List, Optional, Union
 from PyQt5.QtWidgets import (
     QApplication,
     QLabel,
@@ -57,50 +57,86 @@ class Divider(DataOperator):
         return self.num
 
 
-class CalculateWidget(QTreeWidget):
-    def __init__(self, parentWindow: QWidget) -> None:
-        super(CalculateWidget, self).__init__(parentWindow)
+class CalculateWidget(QWidget):
+    def __init__(self, parent: Optional["QWidget"],) -> None:
+        super().__init__(parent=parent)
 
         self._data = Data()
 
+        self.calculateWidgetTree = CalculateWidgetTree(self)
+        self.calculateWidgetTree.itemPressed.connect(self.on_tree_item_click)
+        self.resultDisplay = ResultDisplayWidget(self)
+        self.setLayout(self._get_layout())
+
+    def _get_layout(self) -> QLayout:
+        layout = QVBoxLayout()
+
+        layout.addWidget(self.calculateWidgetTree)
+        layout.addWidget(self.resultDisplay)
+        return layout
+
+    def on_tree_item_click(self, item: "ClickableWidgetItem", column) -> None:
+        self.calculateWidgetTree.on_click(item, column)
+        self.resultDisplay.update()
+
+
+class CalculateWidgetTree(QTreeWidget):
+    def __init__(self, parentWindow: QWidget) -> None:
+        super(CalculateWidgetTree, self).__init__(parentWindow)
+
+        self._data = parentWindow._data
+
         self.multiplier = MultiplyWidget(self)
-        # # self.divider = DivideWidget(self)
-        # self.resultDisplay = ResultDisplayWidget(self)
-        # self.addChild(self.resultDisplay)
-        # self.addChild(self.multiplier)
+        self.divider = DivideWidget(self)
 
     def update_result_display(self) -> None:
         self.resultDisplay.update()
 
+    def on_click(self, item: "ClickableWidgetItem", column: int) -> None:
+        item.on_click()
 
-class MultiplyWidget(QTreeWidgetItem):
+
+class ClickableWidgetItem(QTreeWidgetItem):
+    def __init__(self, parent: QTreeWidgetItem, columnNameList: List[str]) -> None:
+        super().__init__(parent, columnNameList)
+
+    def on_click(self) -> None:
+        pass
+
+
+class MultiplyWidget(ClickableWidgetItem):
     def __init__(self, parentCalculatorWidget: CalculateWidget) -> None:
         super().__init__(parentCalculatorWidget, ["Multiply"])
 
-        self.calculatorWidget = parentCalculatorWidget
+        self.multiplier = Multiplier(parentCalculatorWidget._data)
 
-        self.multiplier = Multiplier(self.calculatorWidget._data)
-
-        self.doMultiplyButton = self.make_multiply_button()
-
-    def make_multiply_button(self) -> None:
-        pass
-
-    def on_multiply_button_clicked(self) -> None:
+    def on_click(self) -> None:
         self.multiplier.multiply()
-        self.calculatorWidget.update_result_display()
 
 
-class ResultDisplayWidget(QTreeWidgetItem):
+class DivideWidget(ClickableWidgetItem):
+    def __init__(self, parentCalculatorWidget: CalculateWidget) -> None:
+        super().__init__(parentCalculatorWidget, ["Divide"])
+
+        self.divider = Divider(parentCalculatorWidget._data)
+
+    def on_click(self) -> None:
+        self.divider.divide()
+
+
+class ResultDisplayWidget(QWidget):
     def __init__(self, parentCalculatorWidget: CalculateWidget) -> None:
         super().__init__(parentCalculatorWidget)
 
         self.calculatorWidget = parentCalculatorWidget
 
-        self.resultDisplay = QLabel(str(self.calculatorWidget.data))
+        self.resultDisplay = QLabel(str(self.calculatorWidget._data))
+        layout = QVBoxLayout()
+        layout.addWidget(self.resultDisplay)
+        self.setLayout(layout)
 
     def update(self) -> None:
-        self.resultDisplay.setText(str(self.calculatorWidget.data))
+        self.resultDisplay.setText(str(self.calculatorWidget._data))
 
 
 if __name__ == "__main__":
